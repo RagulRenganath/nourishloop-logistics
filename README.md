@@ -9,7 +9,7 @@ NourishLoop is a high-fidelity, single-page application (SPA) designed to solve 
 Developed as a comprehensive sustainability project, this platform bridges the gap between premium corporate donors, verified NGOs, and volunteer logistics fleets. It translates sustainability into tangible business metrics through automated ESG reporting, liability management, and algorithmic routing.
 
 ## 🚀 Live Demo
-**[Insert your GitHub Pages Link Here]**
+**[https://ragulrenganath.github.io/nourishloop-logistics/]**
 
 **Demo Access Credentials (Universal):**
 * **System ID:** `world`
