@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NourishLoop | Enterprise Logistics</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { brand: '#10b981', brandDark: '#059669', accent: '#f59e0b', dark: '#0f172a', surface: '#f8fafc', border: '#e2e8f0' },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    animation: { 'gradient-x':'gradient-x 15s ease infinite' },
+                    keyframes: {
+                        'gradient-x': { '0%, 100%': { 'background-size':'200% 200%', 'background-position':'left center' }, '50%': { 'background-size':'200% 200%', 'background-position':'right center' } }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { background: #f1f5f9; color: #334155; -webkit-tap-highlight-color: transparent; overflow: hidden; }
+        
+        /* Premium UI Components */
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.01); border-radius: 16px; transition: all 0.3s ease; }
+        .glass-panel:hover { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.05); }
+        
+        .form-input { width: 100%; background: #f8fafc; border: 2px solid #e2e8f0; padding: 12px 16px; border-radius: 12px; font-weight: 500; color: #0f172a; transition: all 0.3s; }
+        .form-input:focus { outline: none; border-color: #10b981; background: #fff; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1); }
+        
+        .btn-primary { background: #0f172a; color: white; padding: 12px 24px; border-radius: 12px; font-weight: 600; transition: all 0.2s; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2); }
+        .btn-primary:hover { background: #1e293b; transform: translateY(-2px); }
+        .btn-primary:active { transform: translateY(1px) scale(0.98); }
+        
+        .btn-accent { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 12px 24px; border-radius: 12px; font-weight: 600; transition: all 0.2s; cursor: pointer; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
+        .btn-accent:hover { transform: translateY(-2px); box-shadow: 0 8px 15px rgba(16, 185, 129, 0.4); filter: brightness(1.05); }
+        .btn-accent:active { transform: translateY(1px) scale(0.98); }
+
+        /* Dynamic Landing Background */
+        .bg-animated-mesh { background: linear-gradient(-45deg, #ecfdf5, #e0f2fe, #fef3c7, #f0fdf4); background-size: 400% 400%; animation: gradient-x 15s ease infinite; position: absolute; inset: 0; z-index: -1; }
+
+        /* Routing Transitions */
+        .app-view { display: none; opacity: 0; padding-bottom: 100px; height: 100%; overflow-y: auto; overflow-x: hidden; }
+        .app-view.active { display: block; animation: viewEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes viewEnter { from { opacity: 0; transform: translateY(15px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        
+        /* Staggered Animations */
+        .stagger-item { opacity: 0; animation: viewEnter 0.4s ease-out forwards; }
+        .stagger-item:nth-child(1) { animation-delay: 0.05s; }
+        .stagger-item:nth-child(2) { animation-delay: 0.1s; }
+        .stagger-item:nth-child(3) { animation-delay: 0.15s; }
+
+        /* Empty State Pulse */
+        .empty-pulse { animation: emptyPulse 2s infinite ease-in-out; }
+        @keyframes emptyPulse { 0%, 100% { transform: scale(0.95); opacity: 0.5; } 50% { transform: scale(1.05); opacity: 1; } }
+
+        /* Ledger Table */
+        .ledger-table th { background: #f8fafc; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; padding: 12px 16px; border-bottom: 2px solid #e2e8f0; }
+        .ledger-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; }
+
+        /* Toasts */
+        #toast-box { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); color: white; padding: 16px 20px; border-radius: 12px; box-shadow: 0 15px 30px -5px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 14px; transform: translateX(120%); transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); pointer-events: auto; min-width: 320px; }
+        .toast.show { transform: translateX(0); }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col md:flex-row">
+
+    <div id="toast-box"></div>
+
+    <div id="auth-screen" class="absolute inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-animated-mesh"></div>
+        <div class="glass-panel w-full max-w-md p-8 relative overflow-hidden border-t-4 border-t-brand shadow-2xl">
+            <div class="text-center mb-8 mt-2">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand/10 text-brand mb-4 shadow-inner"><i class="fas fa-infinity text-3xl"></i></div>
+                <h1 class="text-3xl font-black text-dark tracking-tight">NourishLoop</h1>
+                <p class="text-xs text-slate-500 font-bold tracking-widest uppercase mt-2">Enterprise Ecosystem</p>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 mb-8">
+                <button onclick="setAuthRole('hotel')" id="auth-hotel" class="auth-btn py-4 rounded-xl border-2 border-slate-200 text-slate-500 font-bold flex flex-col items-center gap-2 hover:bg-slate-50 transition-all active:scale-95">
+                    <i class="fas fa-building text-xl"></i><span class="text-[10px] uppercase">Donor</span>
+                </button>
+                <button onclick="setAuthRole('ngo')" id="auth-ngo" class="auth-btn py-4 rounded-xl border-2 border-slate-200 text-slate-500 font-bold flex flex-col items-center gap-2 hover:bg-slate-50 transition-all active:scale-95">
+                    <i class="fas fa-hand-holding-heart text-xl"></i><span class="text-[10px] uppercase">NGO</span>
+                </button>
+                <button onclick="setAuthRole('volunteer')" id="auth-vol" class="auth-btn py-4 rounded-xl border-2 border-slate-200 text-slate-500 font-bold flex flex-col items-center gap-2 hover:bg-slate-50 transition-all active:scale-95">
+                    <i class="fas fa-truck-fast text-xl"></i><span class="text-[10px] uppercase">Fleet</span>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <input type="text" id="username" placeholder="System ID (world)" class="form-input">
+                <input type="password" id="password" placeholder="Passcode (world)" class="form-input">
+                <button onclick="login()" class="btn-primary w-full mt-4 py-3.5 text-lg">Secure Access <i class="fas fa-arrow-right"></i></button>
+            </div>
+            <button onclick="resetDB()" class="w-full text-center mt-8 text-xs text-slate-400 hover:text-red-500 font-semibold transition-colors">Reset Local Database Instance</button>
+        </div>
+    </div>
+
+    <aside class="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-full z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <div class="p-6 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center"><i class="fas fa-infinity text-lg"></i></div>
+            <span class="font-black text-xl tracking-tight text-dark">NourishLoop</span>
+        </div>
+        <div class="px-6 pb-4 border-b border-slate-100">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Session Protocol</div>
+            <div id="sidebar-role" class="font-bold text-brand text-sm bg-emerald-50 inline-block px-2 py-1 rounded">Role</div>
+        </div>
+        <nav id="desktop-nav" class="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto"></nav>
+        <div class="p-4 border-t border-slate-200 bg-slate-50/50">
+            <button onclick="logout()" class="w-full py-2.5 text-red-600 font-bold hover:bg-red-50 rounded-xl text-sm transition-all flex justify-center items-center gap-2 active:scale-95"><i class="fas fa-power-off"></i> Disconnect</button>
+        </div>
+    </aside>
+
+    <main class="flex-1 h-full relative flex flex-col bg-slate-50/50">
+        <header class="md:hidden bg-white/80 backdrop-blur-md px-5 py-3 sticky top-0 z-30 border-b border-slate-200 flex justify-between items-center shadow-sm">
+            <div>
+                <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">PORTAL</div>
+                <div id="mobile-role" class="font-black text-dark text-base">Role</div>
+            </div>
+            <button onclick="logout()" class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 active:scale-90 transition-transform"><i class="fas fa-power-off text-sm"></i></button>
+        </header>
+        <div class="flex-1 relative w-full max-w-6xl mx-auto p-4 md:p-8 h-full" id="view-container"></div>
+    </main>
+
+    <nav id="mobile-nav" class="md:hidden fixed bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-slate-200 flex justify-around p-2 pb-safe z-30 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]"></nav>
+
+    <script>
+        // --- A. SEEDED DATABASE ---
+        let DB = {
+            inventory: [], missions: [], circularLog: [], inbound: [],
+            stats: { meals: 2450, value: 122500, co2: 840 },
+            ngo: { cap: 100, filter: 'All', fedCount: 420 },
+            vol: { karma: 2150, vehicle: 'Bike' }
+        };
+
+        function initDB() {
+            const saved = localStorage.getItem('nl_master');
+            if(saved) { DB = JSON.parse(saved); } 
+            else {
+                DB.inventory = [
+                    { id: 'i1', name: 'Premium Sandwich Platter', qty: 40, type: 'Veg', status: 'Available', time: Date.now() - 600000, donor: 'Corporate Cafe', txHash: '0x3A2...9B' },
+                    { id: 'i2', name: 'Wedding Buffet Curry', qty: 150, type: 'Non-Veg', status: 'Available', time: Date.now() - 3600000, donor: 'Grand Meridian', txHash: '0x8F1...4C' },
+                    { id: 'i3', name: 'Artisan Bread Loaves', qty: 25, type: 'Veg', status: 'Claimed', time: Date.now() - 86400000, donor: 'The Bakehouse', txHash: '0x1C9...2A' }
+                ];
+                DB.missions = [
+                    { id: 'm1', task: 'Cluster: 3 Cafes -> Shelter', reward: 250, status: 'Open', req: 'Van', loc: [11.018, 76.960] },
+                    { id: 'm2', task: 'Urgent: Hotel -> Orphanage', reward: 100, status: 'Open', req: 'Bike', loc: [11.012, 76.950] }
+                ];
+                DB.circularLog = [
+                    { item: '50kg Expired Dairy', dest: 'City Biogas Plant', impact: 'Energy' },
+                    { item: '20kg Vegetable Scraps', dest: 'Kovai Livestock Farm', impact: 'Feed' }
+                ];
+                DB.inbound = [{ item: 'Packed Lunches (30)', eta: '15 mins', driver: 'Rahul S.' }];
+                saveDB();
+            }
+        }
+        function saveDB() { localStorage.setItem('nl_master', JSON.stringify(DB)); }
+        function resetDB() { localStorage.removeItem('nl_master'); location.reload(); }
+
+        // --- B. AUTHENTICATION ---
+        let activeRole = null, authSel = null;
+        function setAuthRole(role) {
+            authSel = role;
+            document.querySelectorAll('.auth-btn').forEach(b => { 
+                b.classList.remove('border-brand', 'text-brand', 'bg-emerald-50/50');
+                b.classList.add('border-slate-200', 'text-slate-500');
+            });
+            const selected = document.getElementById(`auth-${role==='volunteer'?'vol':role}`);
+            selected.classList.add('border-brand', 'text-brand', 'bg-emerald-50/50');
+            selected.classList.remove('border-slate-200', 'text-slate-500');
+        }
+
+        function login() {
+            if(!authSel) return toast('Authentication Error', 'Select a portal role to continue.', 'error');
+            if(document.getElementById('username').value === 'world' && document.getElementById('password').value === 'world') {
+                activeRole = authSel;
+                document.getElementById('auth-screen').style.display = 'none';
+                const names = { hotel: 'Corporate Donor', ngo: 'Verified NGO', volunteer: 'Logistics Fleet' };
+                document.getElementById('sidebar-role').innerText = names[activeRole];
+                document.getElementById('mobile-role').innerText = names[activeRole];
+                initDB(); buildNav(); toast('Secure Connection', `Authenticated as ${names[activeRole]}.`);
+            } else toast('Access Denied', 'Invalid credentials.', 'error');
+        }
+
+        function logout() { activeRole = null; document.getElementById('auth-screen').style.display = 'flex'; }
+        function toast(title, msg, type='success') {
+            const b = document.getElementById('toast-box');
+            const t = document.createElement('div'); t.className = 'toast';
+            const icon = type==='success' ? 'fa-check-circle text-brand' : 'fa-triangle-exclamation text-red-500';
+            t.innerHTML = `<i class="fas ${icon} text-2xl"></i><div class="flex-1"><h4 class="font-bold text-sm leading-tight">${title}</h4><p class="text-xs text-slate-300 mt-0.5">${msg}</p></div>`;
+            b.appendChild(t); setTimeout(()=>t.classList.add('show'), 10);
+            setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(), 400); }, 3500);
+        }
+
+        // --- C. NAVIGATION ROUTER (15 Features Total) ---
+        const R = {
+            hotel: [
+                { id: 'h1', icon: 'fa-chart-pie', label: 'ESG Metrics', fn: renderH1 },
+                { id: 'h2', icon: 'fa-brain', label: 'AI Analytics', fn: renderH2 },
+                { id: 'h3', icon: 'fa-paper-plane', label: 'Dispatch', fn: renderH3 },
+                { id: 'h4', icon: 'fa-file-signature', label: 'Contracts', fn: renderH4 },
+                { id: 'h5', icon: 'fa-recycle', label: 'Circular Log', fn: renderH5 }
+            ],
+            ngo: [
+                { id: 'n1', icon: 'fa-satellite-dish', label: 'Radar', fn: renderN1 },
+                { id: 'n2', icon: 'fa-sliders', label: 'Capacity', fn: renderN2 },
+                { id: 'n3', icon: 'fa-filter', label: 'Dietary', fn: renderN3 },
+                { id: 'n4', icon: 'fa-truck-ramp-box', label: 'Inbound', fn: renderN4 },
+                { id: 'n5', icon: 'fa-users', label: 'Impact', fn: renderN5 }
+            ],
+            volunteer: [
+                { id: 'v1', icon: 'fa-clipboard-list', label: 'Missions', fn: renderV1 },
+                { id: 'v2', icon: 'fa-map-location-dot', label: 'Telemetry', fn: renderV2 },
+                { id: 'v3', icon: 'fa-gift', label: 'Rewards', fn: renderV3 },
+                { id: 'v4', icon: 'fa-trophy', label: 'Leaderboard', fn: renderV4 },
+                { id: 'v5', icon: 'fa-motorcycle', label: 'Vehicle', fn: renderV5 }
+            ]
+        };
+
+        function buildNav() {
+            const dNav = document.getElementById('desktop-nav'); const mNav = document.getElementById('mobile-nav');
+            dNav.innerHTML = ''; mNav.innerHTML = '';
+            R[activeRole].forEach((tab, i) => {
+                const dB = document.createElement('button');
+                dB.className = `w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all text-sm ${i===0?'bg-brand/10 text-brandDark':'text-slate-500 hover:bg-slate-100'}`;
+                dB.innerHTML = `<i class="fas ${tab.icon} w-5 text-center"></i> ${tab.label}`;
+                dB.onclick = () => { Array.from(dNav.children).forEach(c=>c.className='w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all text-sm text-slate-500 hover:bg-slate-100'); dB.className='w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all text-sm bg-brand/10 text-brandDark'; tab.fn(); };
+                dNav.appendChild(dB);
+                
+                const mB = document.createElement('button');
+                mB.className = `flex flex-col items-center justify-center w-14 h-12 transition-all active:scale-90 ${i===0?'text-brand':'text-slate-400'}`;
+                mB.innerHTML = `<i class="fas ${tab.icon} text-[20px] mb-1"></i><span class="text-[8px] font-bold tracking-wide">${tab.label}</span>`;
+                mB.onclick = () => { Array.from(mNav.children).forEach(c=>c.className='flex flex-col items-center justify-center w-14 h-12 transition-all active:scale-90 text-slate-400'); mB.className='flex flex-col items-center justify-center w-14 h-12 transition-all active:scale-90 text-brand'; tab.fn(); };
+                mNav.appendChild(mB);
+            });
+            R[activeRole][0].fn(); 
+        }
+
+        const view = (html) => { document.getElementById('view-container').innerHTML = `<div class="app-view active">${html}</div>`; };
+        const timeAgo = (ts) => { const m = Math.floor((Date.now()-ts)/60000); return m<60 ? `${m}m ago` : `${Math.floor(m/60)}h ago`; };
+
+        // --- D. HOTEL VIEWS (5 Features) ---
+        function renderH1() {
+            view(`
+                <h2 class="text-3xl font-black mb-6 text-dark tracking-tight">ESG Performance</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="glass-panel p-6 border-t-4 border-t-brand">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tax Offset Value</p>
+                        <h3 class="text-4xl font-black text-dark">₹${DB.stats.value.toLocaleString()}</h3>
+                    </div>
+                    <div class="glass-panel p-6 border-t-4 border-t-accent">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Meals Diverted</p>
+                        <h3 class="text-4xl font-black text-dark">${DB.stats.meals.toLocaleString()}</h3>
+                    </div>
+                    <div class="glass-panel p-6 bg-gradient-to-br from-dark to-slate-800 text-white border-none shadow-xl">
+                        <div class="flex justify-between items-start"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Legal Status</p><i class="fas fa-shield-halved text-brand"></i></div>
+                        <h3 class="text-2xl font-black text-brand mb-1">Shielded</h3>
+                        <p class="text-xs text-slate-300 font-medium">All waivers executed.</p>
+                    </div>
+                </div>
+                <div class="glass-panel p-6">
+                    <h3 class="font-bold text-dark text-lg mb-1">Carbon Offset Breakdown</h3>
+                    <p class="text-xs text-slate-500 mb-6">Distribution of ${DB.stats.co2}kg total prevented emissions.</p>
+                    <div class="space-y-5">
+                        <div><div class="flex justify-between text-sm font-bold text-dark mb-1"><span>Human Consumption</span><span>68%</span></div><div class="w-full bg-slate-100 rounded-full h-2.5"><div class="bg-brand h-2.5 rounded-full" style="width: 68%"></div></div></div>
+                        <div><div class="flex justify-between text-sm font-bold text-dark mb-1"><span>Livestock Feed</span><span>22%</span></div><div class="w-full bg-slate-100 rounded-full h-2.5"><div class="bg-accent h-2.5 rounded-full" style="width: 22%"></div></div></div>
+                    </div>
+                </div>
+            `);
+        }
+        
+        let hChart = null;
+        function renderH2() {
+            view(`
+                <h2 class="text-3xl font-black mb-2 text-dark tracking-tight">AI Predictive Analytics</h2>
+                <p class="text-sm text-slate-500 mb-6">Structural waste modeling based on historical patterns.</p>
+                <div class="glass-panel p-5 mb-4 border border-red-200 bg-red-50 flex items-center gap-3">
+                    <i class="fas fa-brain text-red-500 text-2xl"></i>
+                    <div><h4 class="font-bold text-red-700 text-sm">Actionable Insight (92% Confidence)</h4><p class="text-xs text-red-600 mt-0.5">Reduce rice production by 15% on Friday evenings.</p></div>
+                </div>
+                <div class="glass-panel p-6 h-[400px] relative w-full"><canvas id="aiChart"></canvas></div>
+            `);
+            setTimeout(() => {
+                if(hChart) hChart.destroy();
+                hChart = new Chart(document.getElementById('aiChart').getContext('2d'), {
+                    type: 'bar', data: { labels: ['Week 1','Week 2','Week 3','Week 4 (Surge)','Week 5'], datasets: [{ label: 'Waste Vol (Kg)', data: [20,18,22,45,19], backgroundColor: ['#f1f5f9','#f1f5f9','#f1f5f9','#ef4444','#f1f5f9'], borderRadius: 4 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend:{display:false} }, scales: { x: { grid: { display:false }, border:{display:false} }, y: { border:{display:false} } } }
+                });
+            }, 50);
+        }
+
+        function renderH3() {
+            view(`
+                <h2 class="text-3xl font-black mb-6 text-dark tracking-tight">Dispatch Terminal</h2>
+                <div class="glass-panel p-8 max-w-xl mx-auto shadow-lg">
+                    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                        <div class="w-10 h-10 bg-brand/10 text-brand rounded-full flex items-center justify-center"><i class="fas fa-box-open"></i></div>
+                        <div><h3 class="font-bold text-dark text-lg leading-tight">Log Surplus Inventory</h3><p class="text-xs text-slate-500">Initiate smart contract and geofence broadcast.</p></div>
+                    </div>
+                    <div class="space-y-5">
+                        <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Item Description</label><input type="text" id="p-name" placeholder="e.g. Assorted Banquet Pastries" class="form-input"></div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Portions</label><input type="number" id="p-qty" placeholder="Count" class="form-input"></div>
+                            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Dietary Class</label><select id="p-type" class="form-input"><option>Pure Veg</option><option>Non-Veg</option></select></div>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl mt-4"><label class="flex items-start gap-3 cursor-pointer"><input type="checkbox" class="mt-1 w-4 h-4 text-brand rounded accent-brand" checked><div><span class="text-sm font-bold text-dark block mb-0.5">Enable Anonymous Dispatch</span><span class="text-xs text-slate-500 block">Location only revealed to fleet upon acceptance.</span></div></label></div>
+                        <button onclick="hotelPost()" class="btn-accent w-full mt-4 py-4 text-lg shadow-lg active:scale-95">Sign & Broadcast Alert</button>
+                    </div>
+                </div>
+            `);
+        }
+        window.hotelPost = () => {
+            const n = document.getElementById('p-name').value; const q = parseInt(document.getElementById('p-qty').value);
+            if(!n || !q) return toast('Validation Error','Complete all fields.','error');
+            const hash = '0x' + Math.random().toString(16).substr(2, 6).toUpperCase() + '...' + Math.random().toString(16).substr(2, 2).toUpperCase();
+            DB.inventory.unshift({ id: 'i'+Date.now(), name: n, qty: q, type: document.getElementById('p-type').value, status: 'Available', time: Date.now(), donor: 'Your Hotel', txHash: hash });
+            DB.stats.meals += q; DB.stats.value += (q*50); saveDB(); toast('Contract Initialized', `${q} portions broadcasted to geofence.`); 
+            document.getElementById('p-name').value = ''; document.getElementById('p-qty').value = '';
+        };
+
+        function renderH4() {
+            const activeContracts = DB.inventory.filter(i => i.status !== 'Available');
+            view(`
+                <h2 class="text-3xl font-black mb-6 text-dark tracking-tight">Immutable Ledger</h2>
+                <div class="glass-panel overflow-hidden">
+                    <div class="p-5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center"><h3 class="font-bold text-dark">Executed Smart Contracts</h3><span class="bg-brand/10 text-brand text-xs font-bold px-3 py-1 rounded-full border border-brand/20"><i class="fas fa-shield-check"></i> Compliant</span></div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left ledger-table">
+                            <thead><tr><th>Tx Hash</th><th>Timestamp</th><th>Inventory Record</th><th>Counterparty</th><th>Status</th></tr></thead>
+                            <tbody>
+                                ${activeContracts.length ? activeContracts.map(i => `
+                                    <tr class="stagger-item">
+                                        <td class="font-mono text-xs font-semibold text-slate-500">${i.txHash}</td>
+                                        <td class="text-xs text-slate-500 font-medium">${new Date(i.time).toLocaleDateString()}</td>
+                                        <td><div class="font-bold text-sm text-dark">${i.name}</div><div class="text-[10px] text-slate-500 font-bold uppercase mt-0.5">${i.qty} Portions</div></td>
+                                        <td class="text-sm font-medium text-dark"><i class="fas fa-building-ngo text-slate-400 mr-2"></i>Verified Shelter</td>
+                                        <td><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-wide"><i class="fas fa-check-circle text-brand"></i> Executed</span></td>
+                                    </tr>
+                                `).join('') : `<tr><td colspan="5" class="py-16 text-center text-slate-500 text-sm"><div class="empty-pulse text-4xl mb-3"><i class="fas fa-file-contract"></i></div>Ledger Empty</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `);
+        }
+
+        function renderH5() {
+            view(`
+                <h2 class="text-3xl font-black mb-2 text-dark tracking-tight">Circular Economy Log</h2>
+                <p class="text-sm text-slate-500 mb-6">Expired inventory automatically rerouted from landfills to secondary networks.</p>
+                <div class="glass-panel p-0">
+                    ${DB.circularLog.length ? DB.circularLog.map(c => `
+                        <div class="p-5 border-b border-slate-100 flex justify-between items-center stagger-item">
+                            <div><div class="font-bold text-sm text-dark">${c.item}</div><div class="text-xs text-slate-500 mt-1 font-medium"><i class="fas fa-arrow-right text-brand mr-1"></i> Rerouted to: ${c.dest}</div></div>
+                            <span class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-blue-100">${c.impact} Output</span>
+                        </div>
+                    `).join('') : `<div class="py-16 text-center text-slate-500"><div class="empty-pulse text-4xl mb-3"><i class="fas fa-leaf"></i></div>No Reroutes Logged</div>`}
+                </div>
+            `);
+        }
+
+        // --- E. NGO VIEWS (5 Features) ---
+        function renderN1() {
+            const list = DB.inventory.filter(i => i.status === 'Available' && (DB.ngo.filter === 'All' || i.type.includes(DB.ngo.filter)));
+            view(`
+                <div class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
+                    <div>
+                        <h2 class="text-3xl font-black text-dark tracking-tight">Live Radar</h2>
+                        <p class="text-slate-500 text-sm mt-1 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-brand animate-pulse"></span> Scanning 5km local geofence</p>
+                    </div>
+                    <div class="bg-white border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold shadow-sm">Capacity: <span class="text-brand">${DB.ngo.cap} Meals</span></div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    ${list.length ? list.map(i => `
+                        <div class="glass-panel p-5 border-t-4 border-t-accent flex flex-col h-full stagger-item">
+                            <div class="flex justify-between items-start mb-3"><span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-slate-200">${i.type}</span><span class="text-xs font-bold text-slate-400"><i class="fas fa-clock"></i> ${timeAgo(i.time)}</span></div>
+                            <h3 class="font-bold text-dark text-lg leading-tight mb-2">${i.name}</h3>
+                            <div class="mb-5 bg-slate-50 p-3 rounded-lg border border-slate-100 mt-auto"><div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Portions Available</div><div class="text-2xl font-black text-brand">${i.qty}</div></div>
+                            <button onclick="ngoClaim('${i.id}', ${i.qty})" class="btn-primary w-full shadow-md active:scale-95">Claim & Route Fleet</button>
+                        </div>
+                    `).join('') : `
+                        <div class="col-span-full flex flex-col items-center justify-center py-20 text-center glass-panel">
+                            <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-brand/30 mb-4 empty-pulse"><i class="fas fa-satellite-dish text-4xl"></i></div>
+                            <h4 class="text-slate-700 font-bold text-lg">Radar Clear</h4>
+                            <p class="text-sm text-slate-500 mt-1 max-w-sm">No local surplus matches your parameters.</p>
+                        </div>
+                    `}
+                </div>
+            `);
+        }
+        window.ngoClaim = (id, q) => {
+            if(q > DB.ngo.cap) return toast('Capacity Violation', `Cannot accept ${q} meals. Limit is ${DB.ngo.cap}.`, 'error');
+            DB.inventory.find(i=>i.id===id).status = 'Claimed - Executed';
+            DB.missions.push({ id: 'm'+Date.now(), task: `Deliver ${q}x items`, reward: 150, status: 'Open', req: 'Bike', loc: [11.018, 76.960] });
+            saveDB(); toast('Contract Executed', 'Legal waiver signed. Fleet dispatch initiated.'); renderN1();
+        };
+
+        function renderN2() {
+            view(`
+                <h2 class="text-3xl font-black mb-6 text-dark tracking-tight">Capacity Manager</h2>
+                <div class="glass-panel p-8 max-w-lg">
+                    <label class="block text-sm font-bold mb-6 text-slate-600 uppercase tracking-wider">Fridge Limit (Meals)</label>
+                    <div class="flex items-center gap-6 mb-6">
+                        <input type="range" min="0" max="500" value="${DB.ngo.cap}" class="w-full accent-brand" oninput="document.getElementById('n-cap-v').innerText=this.value; DB.ngo.cap=this.value; saveDB();">
+                        <span id="n-cap-v" class="font-black text-4xl text-brand w-20 text-right">${DB.ngo.cap}</span>
+                    </div>
+                    <p class="text-xs text-slate-500 p-4 bg-slate-50 rounded-lg border border-slate-100"><i class="fas fa-info-circle text-brand mr-1"></i> Radar actively prevents claiming bulk surplus above this limit to prevent spoilage.</p>
+                </div>
+            `);
+        }
+
+        function renderN3() {
+            view(`
+                <h2 class="text-3xl font-black mb-6 text-dark tracking-tight">Dietary Matching</h2>
+                <div class="glass-panel p-8 max-w-lg">
+                    <label class="block text-sm font-bold mb-4 text-slate-600 uppercase tracking-wider">Strict Radar Filter</label>
+                    <select class="form-input mb-6 cursor-pointer" onchange="DB.ngo.filter=this.value; saveDB(); toast('Parameters Saved', 'Radar recalibrated.');">
+                        <option value="All" ${DB.ngo.filter==='All'?'selected':''}>Accept All Dietary Types</option>
+                        <option value="Veg" ${DB.ngo.filter==='Veg'?'selected':''}>Pure Vegetarian Only</option>
+                    </select>
+                    <p class="text-xs text-slate-500 p-4 bg-slate-50 rounded-lg border border-slate-100"><i class="fas fa-filter text-brand mr-1"></i> Radar automatically scrubs non-compliant surplus from your feed.</p>
+                </div>
+            `);
+        }
+
+        function renderN4() {
+            view(`
+                <h2 class="text-3xl font-black mb-6 text-dark tracking-tight">Inbound Telemetry</h2>
+                <div class="glass-panel p-0 overflow-hidden">
+                    ${DB.inbound.length ? DB.inbound.map(i => `
+                        <div class="p-5 border-b border-slate-100 flex items-center gap-5 stagger-item">
+                            <div class="w-12 h-12 rounded-full bg-accent/10 text-accent flex items-center justify-center text-xl"><i class="fas fa-truck-fast"></i></div>
+                            <div><div class="font-bold text-dark text-lg">${i.item}</div><div class="text-sm text-slate-500 font-medium mt-1">ETA: ${i.eta} • Fleet assigned: ${i.driver}</div></div>
+                        </div>
+                    `).join('') : `
+                        <div class="flex flex-col items-center justify-center py-20 text-center">
+                            <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4 empty-pulse"><i class="fas fa-box-open text-4xl"></i></div>
+                            <h4 class="text-slate-700 font-bold text-lg">No Active Deliveries</h4>
+                            <p class="text-sm text-slate-500 mt-1 max-w-sm">Claim food from the radar to dispatch a logistics fleet.</p>
+                        </div>
+                    `}
+                </div>
+            `);
+        }
+
+        function renderN5() {
+            view(`
+                <h2 class="text-3xl font-black mb-6 text-dark tracking-tight">Community Impact</h2>
+                <div class="glass-panel p-8 bg-gradient-to-br from-brand to-brandLight text-white border-none shadow-xl relative overflow-hidden">
+                    <i class="fas fa-users absolute -right-4 -bottom-4 text-8xl text-white/10"></i>
+                    <p class="text-xs font-bold text-brand-100 uppercase tracking-widest relative z-10">People Nourished (This Month)</p>
+                    <h3 class="text-6xl font-black mt-3 relative z-10">${DB.ngo.fedCount}</h3>
+                    <p class="text-sm font-semibold mt-6 relative z-10 bg-white/20 inline-block px-3 py-1 rounded-full"><i class="fas fa-arrow-trend-up"></i> +8% vs last month</p>
+                </div>
+            `);
+        }
+
+        // --- F. VOLUNTEER VIEWS (5 Features + Map) ---
+        function renderV1() {
+            const list = DB.missions.filter(m => m.status === 'Open' && (DB.vol.vehicle === 'Van' || m.req === 'Bike'));
+            view(`
+                <h2 class="text-3xl font-black mb-6 text-dark tracking-tight">Mission Dispatch</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    ${list.length ? list.map(m => `
+                        <div class="glass-panel p-5 border-l-4 border-l-brand flex flex-col stagger-item">
+                            <div class="flex justify-between items-center mb-4"><span class="bg-brand/10 text-brand border border-brand/20 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide"><i class="fas fa-route"></i> Optimal Route</span><span class="text-sm font-black text-accent"><i class="fas fa-bolt"></i> ${m.reward} Pts</span></div>
+                            <h3 class="font-bold text-dark text-lg mb-6 flex-1">${m.task}</h3>
+                            <button onclick="volAccept('${m.id}')" class="btn-primary w-full active:scale-95 py-3">Accept Telemetry</button>
+                        </div>
+                    `).join('') : `
+                        <div class="col-span-full flex flex-col items-center justify-center py-20 text-center glass-panel">
+                            <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4 empty-pulse"><i class="fas fa-motorcycle text-4xl"></i></div>
+                            <h4 class="text-slate-700 font-bold text-lg">Standby</h4>
+                            <p class="text-sm text-slate-500 mt-1 max-w-sm">No pending dispatches algorithmically assigned to your vehicle class (${DB.vol.vehicle}).</p>
+                        </div>
+                    `}
+                </div>
+            `);
+        }
+        window.volAccept = (id) => { DB.missions.find(m=>m.id===id).status = 'Active'; saveDB(); toast('Telemetry Locked', 'Proceed to Active Route.'); renderV1(); };
+
+        let vMap = null;
+        function renderV2() {
+            const m = DB.missions.find(m => m.status === 'Active');
+            if(!m) return view(`
+                <h2 class="text-3xl font-black mb-6 text-dark tracking-tight">Active Route</h2>
+                <div class="flex flex-col items-center justify-center py-20 text-center glass-panel shadow-sm">
+                    <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4 empty-pulse"><i class="fas fa-map-location-dot text-4xl"></i></div>
+                    <h4 class="text-slate-700 font-bold text-lg">No Active Telemetry</h4>
+                    <p class="text-sm text-slate-500 mt-1 max-w-sm">Accept a mission from the dispatch board to initialize the GPS routing engine.</p>
+                </div>
+            `);
+
+            view(`
+                <h2 class="text-3xl font-black mb-6 text-dark tracking-tight">Live Telemetry</h2>
+                <div class="glass-panel p-2 shadow-lg mb-6 relative">
+                    <div class="absolute top-6 left-6 z-20 bg-white/90 backdrop-blur px-4 py-2 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
+                        <div class="w-3 h-3 rounded-full bg-brand animate-ping absolute"></div>
+                        <div class="w-3 h-3 rounded-full bg-brand relative"></div>
+                        <span class="font-bold text-dark text-sm">GPS Tracking Active</span>
+                    </div>
+                    <div id="v-map" class="w-full h-72 md:h-96 bg-slate-100 rounded-xl overflow-hidden relative z-10"></div>
+                </div>
+                <div class="glass-panel p-6 border-t-4 border-t-accent">
+                    <div class="flex justify-between items-start mb-6">
+                        <h3 class="font-black text-dark text-xl leading-tight max-w-[70%]">${m.task}</h3>
+                        <div class="text-right"><div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Reward</div><div class="font-black text-accent text-lg"><i class="fas fa-bolt"></i> ${m.reward}</div></div>
+                    </div>
+                    <button onclick="volDone('${m.id}', ${m.reward})" class="btn-accent w-full py-4 text-lg shadow-lg active:scale-95">Confirm Dropoff Completion</button>
+                </div>
+            `);
+
+            setTimeout(() => {
+                if(vMap) { vMap.remove(); vMap = null; }
+                vMap = L.map('v-map', {zoomControl: false, attributionControl: false}).setView(m.loc, 14);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(vMap);
+                
+                const p1 = m.loc; const p2 = [m.loc[0] - 0.005, m.loc[1] - 0.005];
+                const dot1 = L.divIcon({className: '', html: '<div class="w-5 h-5 bg-dark rounded-full border-4 border-white shadow-lg"></div>', iconSize: [20,20]});
+                const dot2 = L.divIcon({className: '', html: '<div class="w-5 h-5 bg-brand rounded-full border-4 border-white shadow-lg"></div>', iconSize: [20,20]});
+                
+                L.marker(p1, {icon: dot1}).addTo(vMap); L.marker(p2, {icon: dot2}).addTo(vMap);
+                const route = L.polyline([p1, p2], {color: '#10b981', weight: 5, dashArray: '10, 10', opacity: 0.8}).addTo(vMap);
+                vMap.fitBounds(route.getBounds(), {padding: [50, 50]});
+            }, 300);
+        }
+        window.volDone = (id, r) => { DB.missions.find(m=>m.id===id).status = 'Done'; DB.vol.karma += r; saveDB(); toast('Delivery Verified', `+${r} Karma added.`); renderV2(); };
+
+        function renderV3() {
+            view(`
+                <div class="flex justify-between items-end mb-6">
+                    <h2 class="text-3xl font-black text-dark tracking-tight">Corporate Rewards</h2>
+                    <div class="font-black text-2xl text-accent bg-amber-50 border border-amber-100 px-4 py-2 rounded-xl shadow-sm"><i class="fas fa-bolt"></i> ${DB.vol.karma}</div>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-5">
+                    <div class="glass-panel p-6 text-center hover:-translate-y-1 transition-transform cursor-pointer">
+                        <div class="w-14 h-14 bg-orange-100 text-accent rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-gas-pump text-2xl"></i></div>
+                        <h4 class="font-bold text-dark text-lg">Fuel Voucher</h4>
+                        <p class="text-xs text-slate-400 font-bold mb-5 tracking-widest uppercase">1,000 Pts</p>
+                        <button onclick="volBuy(1000)" class="btn-primary w-full text-sm">Redeem</button>
+                    </div>
+                    <div class="glass-panel p-6 text-center hover:-translate-y-1 transition-transform cursor-pointer">
+                        <div class="w-14 h-14 bg-emerald-100 text-brand rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-coffee text-2xl"></i></div>
+                        <h4 class="font-bold text-dark text-lg">Free Coffee</h4>
+                        <p class="text-xs text-slate-400 font-bold mb-5 tracking-widest uppercase">500 Pts</p>
+                        <button onclick="volBuy(500)" class="btn-primary w-full text-sm">Redeem</button>
+                    </div>
+                </div>
+            `);
+        }
+        window.volBuy = (c) => { if(DB.vol.karma>=c){ DB.vol.karma-=c; saveDB(); toast('Unlocked', 'Voucher secured.'); renderV3(); } else toast('Denied', 'Insufficient Karma.', 'error'); };
+
+        function renderV4() {
+            view(`
+                <h2 class="text-3xl font-black mb-6 text-dark tracking-tight">Fleet Leaderboard</h2>
+                <div class="glass-panel p-0 overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 flex items-center gap-5 bg-amber-50/50 stagger-item"><div class="font-black text-accent w-6 text-xl">1</div><div class="w-10 h-10 rounded-full bg-slate-200"></div><div class="flex-1 font-bold text-lg text-dark">Rahul S.</div><div class="font-bold text-accent text-lg">4,200 <i class="fas fa-bolt"></i></div></div>
+                    <div class="p-5 border-b border-slate-100 flex items-center gap-5 stagger-item"><div class="font-black text-slate-400 w-6 text-xl">2</div><div class="w-10 h-10 rounded-full bg-slate-200"></div><div class="flex-1 font-bold text-lg text-dark">Priya K.</div><div class="font-bold text-slate-500 text-lg">3,850 <i class="fas fa-bolt"></i></div></div>
+                    <div class="p-5 flex items-center gap-5 bg-slate-50 border-t-2 border-brand stagger-item"><div class="font-black text-slate-400 w-6 text-xl">6</div><div class="w-10 h-10 rounded-full bg-brand text-white flex items-center justify-center text-sm font-bold shadow-md">You</div><div class="flex-1 font-bold text-lg text-dark">You</div><div class="font-bold text-brand text-lg">${DB.vol.karma} <i class="fas fa-bolt text-accent"></i></div></div>
+                </div>
+            `);
+        }
+
+        function renderV5() {
+            view(`
+                <h2 class="text-3xl font-black mb-6 text-dark tracking-tight">Vehicle Profile</h2>
+                <div class="glass-panel p-8 max-w-lg">
+                    <label class="block text-sm font-bold mb-4 text-slate-600 uppercase tracking-wider">Select Active Vehicle</label>
+                    <select class="form-input mb-6 cursor-pointer" onchange="DB.vol.vehicle=this.value; saveDB(); toast('Parameters Updated', 'Routing algorithms adjusting to new capacity.');">
+                        <option value="Bike" ${DB.vol.vehicle==='Bike'?'selected':''}>Motorbike (Small Capacity)</option>
+                        <option value="Van" ${DB.vol.vehicle==='Van'?'selected':''}>Delivery Van (High Capacity)</option>
+                    </select>
+                    <p class="text-xs text-slate-500 p-4 bg-slate-50 rounded-lg border border-slate-100"><i class="fas fa-truck text-brand mr-1"></i> Selecting "Van" unlocks high-volume SOS cluster missions from banquet halls.</p>
+                </div>
+            `);
+        }
+    </script>
+</body>
+</html>
